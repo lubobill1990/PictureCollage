@@ -2,7 +2,7 @@
 #define POLYGON_H
 
 #include <Polygon/Common.h>
-
+#include <Box2D/ConvexDecomposition/b2Polygon.h>
 #include <algorithm>
 
 namespace bee{
@@ -69,9 +69,19 @@ namespace bee{
 				delete line;
 			}
 		}
+		Polygon(b2Polygon const *polygon){
+			for (int i=0;i<polygon->nVertices;++i)
+			{
+				bee::Point start=Point(polygon->x[i],polygon->y[i]);
+				uint nextPointIndex=(i+1)>=polygon->nVertices?0:i+1;
+				bee::Point end =Point(polygon->x[nextPointIndex],polygon->y[nextPointIndex]);
+				bee::LineSegment edge=bee::LineSegment(start,end);
+				this->AddEdge(edge);
+			}
+		}
 		Polygon(b2Vec2 vertices[],int count,b2Transform tx){
 			Point* vs=new Point[count];
-			for (uint i=0;i<count;++i)
+			for (int i=0;i<count;++i)
 			{
 				vs[i].x=vertices[i].x;
 				vs[i].y=vertices[i].y;
@@ -208,5 +218,8 @@ namespace bee{
 	private:
 		std::vector<Polygon*> e_PolygonList;
 	};
+	b2Polygon* TransBeePolygonTob2Polygon(const Polygon &input);
+	PolygonList TransPolygonListToConvex(const PolygonList &input);
+	PolygonList TransPolygonToConvex(const Polygon &input);
 };
 #endif

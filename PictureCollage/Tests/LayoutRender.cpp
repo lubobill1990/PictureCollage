@@ -32,7 +32,7 @@ bee::PolygonList LayoutRender::CalcBodyShowArea( b2Body *body )
 			b2Transform fx=outerFixture->GetBody()->GetTransform();
 			bee::Polygon *fixturePolygon=new bee::Polygon(fixtureShape->m_vertices,fixtureShape->m_vertexCount,fx);
 			bee::PolygonList contactPolygons;
-			fixturePolygon->Draw(1,1,bee::Color(0.1,0.5,0.5));
+			//fixturePolygon->Draw(1,0,bee::Color(0.1,0.5,0.5));
 			std::vector<b2Fixture*> contactlist=fixData->GetContactedFixtureList();
 			for (uint i=0;i<contactlist.size();++i)
 			{
@@ -42,7 +42,7 @@ bee::PolygonList LayoutRender::CalcBodyShowArea( b2Body *body )
 				contactPolygons.AddPolygon(poly);
 			}
 			bee::PolygonList polygonToShow=fixturePolygon->Segment(contactPolygons);
-			polygonToShow.Draw(1,1);
+			polygonToShow.Draw(1,0);
 			return polygonToShow;
 		}
 	}
@@ -53,13 +53,34 @@ void LayoutRender::CalcEveryBodyShowArea()
 {
 	for (uint i=0;i<this->m_LayoutShowUnitList.size();++i)
 	{
-		this->m_LayoutShowUnitList[i].showArea=this->CalcBodyShowArea(this->m_LayoutShowUnitList[i].body);
+		bee::PolygonList tmpList=this->CalcBodyShowArea(this->m_LayoutShowUnitList[i].body);
+		this->m_LayoutShowUnitList[i].showArea=bee::TransPolygonListToConvex(tmpList);
 	}
+}
+
+void LayoutRender::DrawTexture()
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	for (uint i=0;i<this->m_LayoutShowUnitList.size();++i)
+	{
+		this->m_LayoutShowUnitList[i].DrawTexture();
+	}
+	glFlush();
+}
+
+void LayoutRender::init()
+{
+	glClearColor (0.0, 0.0, 0.0, 0.0);
+	glShadeModel(GL_FLAT);
+	glEnable(GL_DEPTH_TEST);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
 LayoutShowUnit::LayoutShowUnit( b2Body *body )
 {
 	this->body=body;
+	this->picture=((BodyData*)body->GetUserData())->m_Image;
+	this->texName=0;
 }
 
 LayoutShowUnit::LayoutShowUnit( LayoutShowUnit & copyInstance)
@@ -71,4 +92,33 @@ LayoutShowUnit::LayoutShowUnit( LayoutShowUnit & copyInstance)
 LayoutShowUnit::~LayoutShowUnit()
 {
 
+}
+
+void LayoutShowUnit::DrawTexture()
+{
+	glBindTexture(GL_TEXTURE_2D,this->texName);
+	glBegin(GL_QUADS);
+
+	glEnd();
+	glFlush();
+}
+
+void LayoutShowUnit::BindTexture()
+{
+	if (this->texName>0)
+	{
+		return;
+	}
+	glGenTextures(1, &this->texName);
+	glBindTexture(GL_TEXTURE_2D, this->texName);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, 
+		GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 
+		GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->picture->width, 
+		this->picture->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 
+		this->picture->imgData);
 }

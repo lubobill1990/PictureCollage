@@ -474,4 +474,47 @@ next_loop:
 		}
 		this->e_HasTrimColinearEdges=true;
 	}
+
+	b2Polygon* TransBeePolygonTob2Polygon( const Polygon &input )
+	{
+		float32 *x=new float32[input.Size()];
+		float32 *y=new float32[input.Size()];
+		for (int i=0;i<input.Size();++i)
+		{
+			x[i]=input[i].start.x;
+			y[i]=input[i].start.y;
+		}
+		b2Polygon *output= new b2Polygon(x,y,input.Size());
+		delete[]x;
+		delete[]y;
+		return output;
+	}
+
+	bee::PolygonList TransPolygonListToConvex( const PolygonList &input )
+	{
+		PolygonList ret_val;
+		uint curIndex=0;
+		for (uint i=0;i<input.Size();++i)
+		{
+			PolygonList tmpList=TransPolygonToConvex(input[i]);
+			ret_val.AddPolygon(tmpList);
+		}
+		return ret_val;
+	}
+
+	bee::PolygonList TransPolygonToConvex( const Polygon &input )
+	{
+		PolygonList ret_val;
+		b2Polygon *tmpPolygons=new b2Polygon[100];
+		b2Polygon *poly_src=TransBeePolygonTob2Polygon(input);
+		int32 polygon_count=DecomposeConvex(poly_src,tmpPolygons,100);
+		for (uint i=0;i<polygon_count;++i)
+		{
+			ret_val.AddPolygon(new Polygon(&tmpPolygons[i]));
+		}
+		delete[] tmpPolygons;
+		delete poly_src;
+		return ret_val;
+	}
+
 }
