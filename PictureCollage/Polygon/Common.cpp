@@ -4,19 +4,6 @@
 #include <cstdlib>
 #include <cstdarg>
 
-void WindowPos(GLint xx,GLint yy)
-{/*old method */
-	GLint viewport[4];
-	GLdouble modelview[16],projection[16];
-	GLdouble x,y,z;
-	glGetIntegerv(GL_VIEWPORT,viewport);
-	glGetDoublev(GL_MODELVIEW_MATRIX,modelview);
-	glGetDoublev(GL_PROJECTION_MATRIX,projection);
-
-	gluUnProject(xx,yy,0.5,modelview,projection,viewport,&x,&y,&z);
-	glRasterPos3d(x,y,z);
-
-}
 
 /// Random floating point number in range [lo, hi]
 inline float32 RandomFloat(float32 lo, float32 hi)
@@ -27,37 +14,6 @@ inline float32 RandomFloat(float32 lo, float32 hi)
 	return r;
 }
 
-void DrawString(int x, int y, const char *fmt, ...)
-{
-	char buffer[128];
-	va_list arg;
-	va_start(arg, fmt);
-	vsprintf(buffer, fmt, arg);
-	va_end(arg);
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	int w = glutGet(GLUT_WINDOW_WIDTH);
-	int h = glutGet(GLUT_WINDOW_HEIGHT);
-	gluOrtho2D(0, w, h, 0);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-
-	glColor3f(0.9f, 0.6f, 0.6f);
-	WindowPos(x,y);
-	int32 length = (int32)strlen(buffer);
-	for (int32 i = 0; i < length; ++i)
-	{
-		glutBitmapCharacter(GLUT_BITMAP_8_BY_13, buffer[i]);
-	}
-
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-}
 bool TestLineIntersect(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float &InterX, float &InterY)
 { //两条线段是否相交X0X1 AND X1X2
 	float x, y;

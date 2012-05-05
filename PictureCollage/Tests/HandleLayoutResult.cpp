@@ -2,7 +2,7 @@
 #include "HandleLayoutResult.h"
 #include "FixtureData.h"
 #include <math.h>
-#include "common.h"
+#include "Common.h"
 using namespace std;
 #include "freeglut/GL/glut.h"
 
@@ -242,28 +242,6 @@ void HandleContactFixture(b2World *world){
 			}
 		}
 	}
-}
-std::vector<ShowAera> GetResultPicture(b2World *world){
-
-	for (b2Body* body=world->GetBodyList();body;body=body->GetNext())
-	{
-		//对于每两个相碰的body,获取其相碰的fixture,
-		b2ContactEdge* edge=body->GetContactList();
-		//这里取出的两个fixture是相碰的一个内多边形,和外多边形
-		//相交的两个fixture应该是同一body中的另两个fixture
-
-		if (edge!=NULL)
-		{	
-			if (edge->contact->GetFixtureA()->GetBody()->GetType()!=0&&	edge->contact->GetFixtureB()->GetBody()->GetType()!=0)
-			{
-				b2Fixture *fixtureA=GetAnotherFixtureInSameBody(edge->contact->GetFixtureA());
-				b2Fixture *fixtureB=GetAnotherFixtureInSameBody(edge->contact->GetFixtureB());
-				float32 overArea=GetOverlapArea(fixtureA,fixtureB);
-				cout<<overArea<<endl;
-			}	
-		}
-	}
-	return std::vector<ShowAera> ();
 }
 
 //调整图片的倾斜角度,使之不至于太斜

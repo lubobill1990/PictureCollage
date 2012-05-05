@@ -23,10 +23,7 @@ inline bee::Point GetWorldPoint(const bee::Point& local_point,const bee::Transfo
 	return bee::Point(b2Mul(b2Transform(xf.position,xf.R),b2Vec2(local_point.x,local_point.y)));
 }
 
-
 bool TestLineIntersect(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float &InterX, float &InterY);
-float distance();
-void DrawString(int x, int y, const char *string, ...);
 
 #include <Polygon/Polygon.h>
 #endif

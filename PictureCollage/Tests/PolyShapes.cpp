@@ -239,7 +239,6 @@ void PolyShapes::Create(int32 index)
 	b2Fixture* salientFixture=m_bodies[m_bodyIndex]->CreateFixture(&salent_bound);
 	((FixtureData*)outerFixture->GetUserData())->SetFixture(outerFixture);
 	((FixtureData*)salientFixture->GetUserData())->SetFixture(salientFixture);
-	m_bodies[m_bodyIndex]->SetUserData(new BodyData(this->body_num));
 	BodyData *bodyData=new BodyData(this->body_num);
 	bodyData->m_Image=&pictureInfo;
 	m_bodies[m_bodyIndex]->SetUserData(bodyData);

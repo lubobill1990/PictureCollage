@@ -43,16 +43,15 @@ class ShowAera{
 	int vertics_count;
 };
 const int32 k_maxBodies = 2560;
-std::vector<ShowAera> GetResultPicture(b2World *world);
 b2Fixture *GetAnotherFixtureInSameBody(b2Fixture *fixture);
+b2Fixture *GetOutsideFixture(b2Body *body);
+b2Fixture *GetInsideFixture(b2Body *body);
 float32 testDistance(b2Fixture* fixtureA,b2Fixture *fixtureB);
 inline float32 RandomFloat(float32 lo, float32 hi);
-bool TestLineIntersect(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float &InterX, float &InterY);
-float distance();
 void PrintFixture(b2Fixture* fixture);
 void DrawString(int x, int y, const char *string, ...);
 void DrawCoordinary();
-
+void DrawPoint(const bee::Point &p);
 
 template <class Type>
 Type Str2Num(const std::string& str)

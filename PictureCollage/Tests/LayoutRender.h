@@ -4,17 +4,18 @@
 class LayoutShowUnit{
 public:
 	LayoutShowUnit(b2Body *body);
-	LayoutShowUnit(LayoutShowUnit &);
+	LayoutShowUnit(const LayoutShowUnit &);
 	void BindTexture();
 	void DrawTexture();
-	bee::Point SaclePositionInImage(bee::Point positionInBox2d);
+	bee::Point GetCoordinateInPictureFromWorld(bee::Point positionInBox2d);
 	~LayoutShowUnit();
 	bee::PolygonList showArea;
 	b2Body *body;
 	bee::Picture *picture;
 	GLuint texName;
 private:
-	b2Mat33 s_TransformToScalePosition;
+	b2Vec3 xDirectionVector;
+	b2Vec3 yDirectionVector;
 	void CalcTransformToScalePosition();
 };
 class LayoutRender
