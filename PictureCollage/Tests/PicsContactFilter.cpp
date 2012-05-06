@@ -32,7 +32,7 @@ bool PicsContactFilter::ShouldCollideAccordingToFixtureData(b2Fixture *fixtureA,
 		if (!another_inner_fixture_data->HaveContactedFixture(outer_fixture))
 		{
 			//并且开始的一对的相交面积大于0
-			float overlap_area=GetOverlapArea(inner_fixture,another_outer_fixture);
+			float overlap_area=GetPolygonFixtureOverlapArea(inner_fixture,another_outer_fixture);
 			if (overlap_area>0)
 			{
 				another_inner_fixture_data->AddContactedFixture(outer_fixture);

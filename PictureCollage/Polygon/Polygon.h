@@ -51,12 +51,15 @@ namespace bee{
 	class Polygon
 	{
 	public:
-		Polygon(){
+		void init(){
 			this->e_HasValidated=false;
 			this->e_HasTrimColinearEdges=false;
 		}
-		Polygon(float *points,int count,Transform &tx){
-			Polygon();
+		Polygon(){
+			this->init();
+		}
+		Polygon(float *points,int count,Transform &tx=Transform()){
+			this->init();
 			for (int i=0;i<count;++i)
 			{
 				Point tmp_point(points[i*2],points[i*2+1]);
@@ -70,6 +73,7 @@ namespace bee{
 			}
 		}
 		Polygon(b2Polygon const *polygon){
+			this->init();
 			for (int i=0;i<polygon->nVertices;++i)
 			{
 				bee::Point start=Point(polygon->x[i],polygon->y[i]);
@@ -80,6 +84,8 @@ namespace bee{
 			}
 		}
 		Polygon(b2Vec2 vertices[],int count,b2Transform tx){
+			this->init();
+
 			Point* vs=new Point[count];
 			for (int i=0;i<count;++i)
 			{
@@ -96,8 +102,9 @@ namespace bee{
 			}
 			delete [] vs;
 		}
-		Polygon(Point vertices[],int count,Transform &tx){
-			Polygon();
+		Polygon(Point vertices[],int count,Transform &tx=Transform()){		
+			this->init();
+
 			for (int i=0;i<count;++i)
 			{
 				Point curVertice=GetWorldPoint(vertices[i],tx);
@@ -121,6 +128,9 @@ namespace bee{
 				std::remove(this->e_Edges.begin(),this->e_Edges.end(),line),
 				this->e_Edges.end());
 		};
+		void DelEdgeIndexOf(int i){
+			this->e_Edges.erase(this->e_Edges.begin()+this->ValidateIndex(i));
+		}
 		LineSegment &operator[](uint i){
 			return const_cast<LineSegment &>( (*const_cast<const Polygon *>(this))[i]);
 		};
@@ -130,6 +140,9 @@ namespace bee{
 		uint Size() const{
 			return this->e_Edges.size();
 		}
+		bool TestConvex() const;
+		Polygon ConvexHull();
+		float32 ComputeArea();
 		/// 返回一个多边形,这个多边形的顶点包含被调用多边形的顶点和被调用多边形与另一个多边形的交点
 		Polygon GetPolygonAddInterPointAsVertex(const Polygon &polygon) const;
 		/// 调用这个函数前，多边形的每条边可能不是首尾相连，并且成逆时针排列的
@@ -173,7 +186,17 @@ namespace bee{
 		{
 			return this->e_Edges[0];
 		}
-
+		inline uint ValidateIndex(int i){
+			if(i>=this->Size()){
+				i=i%this->Size();
+			}else if(i<0){
+				i=this->Size()-(-i)%this->Size();
+			}
+			return i;
+		}
+		LineSegment& GetEdgeIndexOf(int i){
+			return this->e_Edges[this->ValidateIndex(i)];
+		}
 		/// 检查多边形，使多边形合法化
 		/// 去掉长度为0的边
 		void TrimZeroLengthEdges();
@@ -185,6 +208,7 @@ namespace bee{
 	public:
 		PolygonList(){};
 		~PolygonList(){};
+		float32 ComputeArea();
 		void AddPolygon(Polygon *polygon)
 		{
 			this->e_PolygonList.push_back(polygon);
@@ -221,5 +245,8 @@ namespace bee{
 	b2Polygon* TransBeePolygonTob2Polygon(const Polygon &input);
 	PolygonList TransPolygonListToConvex(const PolygonList &input);
 	PolygonList TransPolygonToConvex(const Polygon &input);
+
+	std::vector<b2Vec2> TransToB2VecVector(const Polygon &polygon);
+	Polygon GetApproxiPolygonWithEdgeNumberLessThan(const Polygon &polygon, uint max_edge_number);
 };
 #endif

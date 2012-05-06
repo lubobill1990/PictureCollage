@@ -1,11 +1,9 @@
-#include "common.h"
+#include "Common.h"
 #include <Polygon/Polygon.h>
 
 VecVector ReorderVertices(VecVector vertices);
 
-float GetOverlapArea(b2Fixture* fixtureA,b2Fixture* fixtureB);
+float GetPolygonFixtureOverlapArea(b2Fixture* fixtureA,b2Fixture* fixtureB);
 
 void HandleContactFixture(b2World *world);
 void AdjustAngle(b2World *world);
-std::vector<bee::PolygonList> GetAreaToShow(b2World *world);
-void DrawAreaToShow(b2World *world);

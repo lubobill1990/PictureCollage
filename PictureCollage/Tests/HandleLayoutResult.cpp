@@ -138,61 +138,17 @@ VecVector ReorderVertices(VecVector vertices){
 /************************************************************************/
 /* 计算两个fixture相互交叠的面积                                        */
 /************************************************************************/
-float GetOverlapArea(b2Fixture* fixtureA,b2Fixture* fixtureB){
+float GetPolygonFixtureOverlapArea(b2Fixture*fixtureA,b2Fixture*fixtureB){
 	b2PolygonShape *shapeA, *shapeB;
 	shapeA=(b2PolygonShape*)fixtureA->GetShape();
 	shapeB=(b2PolygonShape*)fixtureB->GetShape();
 	const b2Transform tA=fixtureA->GetBody()->GetTransform();
 	const b2Transform tB=fixtureB->GetBody()->GetTransform();
-
-	std::vector<b2Vec2> vertices;
-	int vertex_count=0;
-	//注意相比较需要使用world坐标
-	//首先得到相交的线及其交点,及进入另一个fixture内部的点
-	//内部点
-	for (int i=0;i<shapeA->m_vertexCount;++i)
-	{
-		//如果在A有点在B的内部,则添入顶点数组
-		if(fixtureB->TestPoint(GetWorldPoint(shapeA->m_vertices[i],tA))){
-			vertices.push_back(GetWorldPoint(shapeA->m_vertices[i],tA));
-		}
-	}
-	for (int i=0;i<shapeB->m_vertexCount;++i)
-	{
-		//如果在B有点在A的内部,则添入顶点数组
-		if(fixtureA->TestPoint(GetWorldPoint(shapeB->m_vertices[i],tB))){
-			vertices.push_back(GetWorldPoint(shapeB->m_vertices[i],tB));
-		}
-	}
-	//如果两个fixture没有在对方内部的点,说明没有重叠的区域,下面的步骤可以直接省略了
-	if (vertices.size()==0)
-	{
-		return 0;
-	}
-	//交点
-	b2Vec2 intersection;
-	for (int i=0;i<shapeA->m_vertexCount;++i)
-	{
-		b2Vec2 cur_vertice_A=GetWorldPoint(shapeA->m_vertices[i],tA);
-		b2Vec2 next_vertice_A=GetWorldPoint(shapeA->m_vertices[(i<shapeA->m_vertexCount-1)?i+1:0],tA);
-		for (int j=0;j<shapeB->m_vertexCount;++j)
-		{
-			b2Vec2 cur_vertice_B=GetWorldPoint(shapeB->m_vertices[j],tB);
-			b2Vec2 next_vertice_B=GetWorldPoint(shapeB->m_vertices[(j<shapeB->m_vertexCount-1)?j+1:0],tB);
-			if (TestLineIntersect(cur_vertice_A.x,cur_vertice_A.y,next_vertice_A.x,next_vertice_A.y,cur_vertice_B.x,cur_vertice_B.y,next_vertice_B.x,next_vertice_B.y,intersection.x,intersection.y))
-			{
-				vertices.push_back(intersection);
-			}
-		}
-	}
-
-	//重新排列vertices,使点成为逆时针排列
-	vertices=ReorderVertices(vertices);
-
-	//然后将这几个点逆时针组成b2Vec数组,用computeArea算面积
-	return ComputeArea(vertices);
+	bee::Polygon polyA=bee::Polygon(shapeA->m_vertices,shapeA->m_vertexCount,tA);
+	bee::Polygon polyB=bee::Polygon(shapeB->m_vertices,shapeB->m_vertexCount,tB);
+	bee::PolygonList tmp=polyA.GetOverlapdArea(polyB);
+	return tmp.ComputeArea();
 }
-
 void HandleContactFixture(b2World *world){
 	static int count=0;
 	++count;
@@ -218,14 +174,15 @@ void HandleContactFixture(b2World *world){
 			{
 				continue;
 			}
-			std::vector<b2Fixture*> contacted_fixture_list=((FixtureData*)(fixture->GetUserData()))->GetContactedFixtureList();
+			std::vector<b2Fixture*> contacted_fixture_list=fixture_data->GetContactedFixtureList();
 			for (uint i=0;i<contacted_fixture_list.size();++i)
 			{
 				b2Fixture* contacted_body_outer_fixture=contacted_fixture_list[i];
 				b2Fixture* contacted_body_inner_fixture=GetAnotherFixtureInSameBody(contacted_body_outer_fixture);
 				b2Fixture* outer_fixture=GetAnotherFixtureInSameBody(fixture);
-				float32 area_thisouter_contactedinner=GetOverlapArea(contacted_body_inner_fixture,outer_fixture);
-				float32 area_thisinner_contactedouter=GetOverlapArea(contacted_body_outer_fixture,fixture);
+				float32 area_thisouter_contactedinner=GetPolygonFixtureOverlapArea(contacted_body_inner_fixture,outer_fixture);
+
+				//float32 area_thisinner_contactedouter=GetPolygonFixtureOverlapArea(contacted_body_outer_fixture,fixture);
 				//只有当另一对有相交面积,本对的存在才有意义,所以另一对如果没有了相交面积,则需要消除本对的contactlist
 				if (area_thisouter_contactedinner==0)
 				{
@@ -275,46 +232,6 @@ void AdjustAngle(b2World *world){
 		}
 	}
 }
-std::vector<bee::PolygonList> GetAreaToShow( b2World *world )
-{
-	std::vector<bee::PolygonList> retVal;
-	for (b2Body *body=world->GetBodyList();body;body=body->GetNext())
-	{
-		if (body->GetType()==b2_staticBody)
-		{
-			continue;
-		}
-		for (b2Fixture *fixture=body->GetFixtureList();fixture;fixture=fixture->GetNext())
-		{
-			FixtureData* fixData=((FixtureData*)fixture->GetUserData());
-			if (fixData->GetFixtureType()==inner)//只取内部多边形的碰撞多边形
-			{
-				b2Fixture *outerFixture=GetAnotherFixtureInSameBody(fixture);
-				b2PolygonShape* fixtureShape=((b2PolygonShape*)outerFixture->GetShape());
-				b2Transform fx=outerFixture->GetBody()->GetTransform();
-				bee::Polygon *fixturePolygon=new bee::Polygon(fixtureShape->m_vertices,fixtureShape->m_vertexCount,fx);
-				bee::PolygonList contactPolygons;
-				
-				std::vector<b2Fixture*> contactlist=fixData->GetContactedFixtureList();
-				//if (contactlist.size()==0)
-				//{
-				//	continue;
-				//}
-				for (uint i=0;i<contactlist.size();++i)
-				{
-					b2PolygonShape *tmpShape=(b2PolygonShape *)(contactlist[i]->GetShape());
-					b2Transform tx=contactlist[i]->GetBody()->GetTransform();
-					bee::Polygon *poly=new bee::Polygon(tmpShape->m_vertices,tmpShape->m_vertexCount,tx);
-					contactPolygons.AddPolygon(poly);
-				}
-				bee::PolygonList polygonToShow=fixturePolygon->Segment(contactPolygons);
-				//drawPolygons(polygonToShow);
-				retVal.push_back(polygonToShow);
-			}
-		}
-	}
-	return retVal;
-}
 
 void init (void) 
 {
@@ -327,19 +244,3 @@ void init (void)
 	glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
 }
 
-b2World * g_world;
-void newdisplay(){
-	glClear (GL_COLOR_BUFFER_BIT);
-	DrawCoordinary();
-	std::vector<bee::PolygonList> polygonsToShow=GetAreaToShow(g_world);
-	for (uint i=0;i<polygonsToShow.size();++i)
-	{
-		polygonsToShow[i].Draw();
-	}
-}
-void DrawAreaToShow( b2World *world )
-{
-	g_world=world;
-	glutDisplayFunc(newdisplay);
-	glutPostRedisplay();
-}

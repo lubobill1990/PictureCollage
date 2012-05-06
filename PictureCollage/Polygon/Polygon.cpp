@@ -206,11 +206,7 @@ namespace bee{
 				//如果本多边形在所给多边形内，则返回本多边形
 				ret_val.AddPolygon(new Polygon(*this));
 			}else{
-				//如果两个多边形相互没有关系，则返回两个多边形
-				Polygon *p1=new Polygon(*this);
-				Polygon *p2=new Polygon(polygon);
-				ret_val.AddPolygon(p1);
-				ret_val.AddPolygon(p2);
+				//如果两个多边形相互没有关系，则返回0多边形
 			}
 			return ret_val;
 		}
@@ -475,11 +471,135 @@ next_loop:
 		this->e_HasTrimColinearEdges=true;
 	}
 
+	float32 ComputeB2VectorArea(std::vector<b2Vec2> vertices){
+		if (vertices.size()<=2)
+		{
+			return 0;
+		}
+		b2Vec2 center;
+		center.Set(0.0f, 0.0f);
+		float32 area = 0.0f;
+		float32 I = 0.0f;
+
+		// pRef is the reference point for forming triangles.
+		// It's location doesn't change the result (except for rounding error).
+		b2Vec2 pRef(0.0f, 0.0f);
+#if 0
+		// This code would put the reference point inside the polygon.
+		for (int32 i = 0; i < m_vertexCount; ++i)
+		{
+			pRef += m_vertices[i];
+		}
+		pRef *= 1.0f / count;
+#endif
+
+		const float32 k_inv3 = 1.0f / 3.0f;
+
+		for (unsigned int i = 0; i < vertices.size(); ++i)
+		{
+			// Triangle vertices.
+			b2Vec2 p1 = pRef;
+			b2Vec2 p2 = vertices[i];
+			b2Vec2 p3 = i + 1 < vertices.size() ? vertices[i+1] : vertices[0];
+
+			b2Vec2 e1 = p2 - p1;
+			b2Vec2 e2 = p3 - p1;
+
+			float32 D = b2Cross(e1, e2);
+
+			float32 triangleArea = 0.5f * D;
+			area += triangleArea;
+
+			// Area weighted centroid
+			center += triangleArea * k_inv3 * (p1 + p2 + p3);
+
+			float32 px = p1.x, py = p1.y;
+			float32 ex1 = e1.x, ey1 = e1.y;
+			float32 ex2 = e2.x, ey2 = e2.y;
+
+			float32 intx2 = k_inv3 * (0.25f * (ex1*ex1 + ex2*ex1 + ex2*ex2) + (px*ex1 + px*ex2)) + 0.5f*px*px;
+			float32 inty2 = k_inv3 * (0.25f * (ey1*ey1 + ey2*ey1 + ey2*ey2) + (py*ey1 + py*ey2)) + 0.5f*py*py;
+
+			I += D * (intx2 + inty2);
+		}
+
+		// Total mass
+
+		// Center of mass
+		if (area<b2_epsilon)
+		{
+			area=0;
+		}
+		return area;
+	}
+	float32 Polygon::ComputeArea()
+	{
+		float32 retVal=0;
+		PolygonList convexPolygons=TransPolygonToConvex(*this);
+		for(uint i=0;i<convexPolygons.Size();++i){
+			retVal+=ComputeB2VectorArea(TransToB2VecVector(convexPolygons[i]));
+		}
+		return retVal;
+	}
+
+	bool Polygon::TestConvex() const
+	{
+		LineSegment firstLine=this->operator[](this->Size()-1);
+		LineSegment secondLine;
+		for (uint i=0;i<this->Size();)
+		{
+			secondLine=this->operator[](i);
+			b2Vec2 vector1=b2Vec2(firstLine.end.x-firstLine.start.x,firstLine.end.y-firstLine.start.y);
+			b2Vec2 vector2=b2Vec2(secondLine.end.x-secondLine.start.x,secondLine.end.y-secondLine.start.y);
+			if(b2Cross(vector1,vector2)<0){
+				return false;
+			}
+			++i;
+			firstLine=this->operator[](i-1);
+		}
+		return true;
+	}
+
+	Polygon Polygon::ConvexHull()
+	{
+		Polygon retVal=*this;
+		for (uint i=0;i<retVal.Size();++i)
+		{
+			LineSegment &firstLine=retVal.GetEdgeIndexOf(i);
+			LineSegment &secondLine=retVal.GetEdgeIndexOf(i+1);
+
+			b2Vec2 vector1=b2Vec2(firstLine.end.x-firstLine.start.x,firstLine.end.y-firstLine.start.y);
+			b2Vec2 vector2=b2Vec2(secondLine.end.x-secondLine.start.x,secondLine.end.y-secondLine.start.y);
+			if(b2Cross(vector1,vector2)<=0){
+				firstLine.end=secondLine.end;
+				retVal.DelEdgeIndexOf(i+1);
+				--i;
+			}
+		}
+
+		for (uint i=0;i<retVal.Size();++i)
+		{
+			LineSegment &firstLine=retVal.GetEdgeIndexOf(i);
+			LineSegment &secondLine=retVal.GetEdgeIndexOf(i+1);
+
+			b2Vec2 vector1=b2Vec2(firstLine.end.x-firstLine.start.x,firstLine.end.y-firstLine.start.y);
+			b2Vec2 vector2=b2Vec2(secondLine.end.x-secondLine.start.x,secondLine.end.y-secondLine.start.y);
+			if(b2Cross(vector1,vector2)<=0){
+				firstLine.end=secondLine.end;
+				retVal.DelEdgeIndexOf(i+1);
+				--i;
+			}else{
+				break;
+			}
+		}
+		return retVal;
+	}
+
 	b2Polygon* TransBeePolygonTob2Polygon( const Polygon &input )
 	{
 		float32 *x=new float32[input.Size()];
 		float32 *y=new float32[input.Size()];
-		for (int i=0;i<input.Size();++i)
+		for (uint i=0;i<input.Size();++i)
 		{
 			x[i]=input[i].start.x;
 			y[i]=input[i].start.y;
@@ -505,16 +625,71 @@ next_loop:
 	bee::PolygonList TransPolygonToConvex( const Polygon &input )
 	{
 		PolygonList ret_val;
-		b2Polygon *tmpPolygons=new b2Polygon[100];
-		b2Polygon *poly_src=TransBeePolygonTob2Polygon(input);
-		int32 polygon_count=DecomposeConvex(poly_src,tmpPolygons,100);
-		for (uint i=0;i<polygon_count;++i)
+		if (input.TestConvex())
 		{
-			ret_val.AddPolygon(new Polygon(&tmpPolygons[i]));
+			ret_val.AddPolygon(new Polygon(input));
+		}else{
+			b2Polygon *tmpPolygons=new b2Polygon[100];
+			b2Polygon *poly_src=TransBeePolygonTob2Polygon(input);
+			int32 polygon_count=DecomposeConvex(poly_src,tmpPolygons,100);
+			for (uint i=0;i<polygon_count;++i)
+			{
+				ret_val.AddPolygon(new Polygon(&tmpPolygons[i]));
+			}
+			delete[] tmpPolygons;
+			delete poly_src;
 		}
-		delete[] tmpPolygons;
-		delete poly_src;
 		return ret_val;
+	}
+
+	std::vector<b2Vec2> TransToB2VecVector( const Polygon &polygon )
+	{
+		std::vector<b2Vec2> retVal;
+		for (uint i=0;i<polygon.Size();++i)
+		{
+			retVal.push_back(b2Vec2(polygon[i].start.x,polygon[i].start.y));
+		}
+		return retVal;
+	}
+
+
+	float32 PolygonList::ComputeArea()
+	{
+		float32 retVal=0;
+		for (uint i=0;i<this->Size();++i)
+		{
+			retVal+=this->e_PolygonList[i]->ComputeArea();
+		}
+		return retVal;
+	}
+
+	Polygon GetApproxiPolygonWithEdgeNumberLessThan( const Polygon &polygon, uint max_edge_number=8 )
+	{
+		Polygon retVal;
+		double scale=double(polygon.Size())/max_edge_number;
+		if (scale<=1)
+		{
+			retVal=Polygon(polygon);
+		}else{
+			scale=ceil(scale);
+			uint overlapNum=polygon.Size()-8;
+			Point *vertices=new Point[max_edge_number];
+			uint edge_index=0;
+			int count =1;
+			for (uint i=0;i<polygon.Size();++i)
+			{
+				if (count>=scale)
+				{
+					vertices[edge_index]=(polygon[i].GetStart());
+					++edge_index;
+					count=0;
+				}
+				++count;
+			}
+			retVal=Polygon(vertices,edge_index);
+			delete [] vertices;
+		}
+		return retVal;
 	}
 
 }

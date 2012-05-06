@@ -34,7 +34,9 @@ namespace bee{
 			this->position=tx.position;
 			this->R=tx.R;
 		}
-		Transform(){}
+		Transform(){
+			this->SetIdentity();
+		}
 	};
 	class Color{
 	public:
@@ -136,7 +138,9 @@ namespace bee{
 		{
 			return IsFloatValid(x) && IsFloatValid(y);
 		}
-
+		operator b2Vec2(){
+			return b2Vec2(this->x,this->y);
+		}
 		float32 x, y;
 	};
 

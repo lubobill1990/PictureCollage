@@ -7,9 +7,12 @@ public:
 	LayoutShowUnit(const LayoutShowUnit &);
 	void BindTexture();
 	void DrawTexture();
+	void DrawFullTexture();
+	bee::Polygon GetPictureTotalShowArea();
 	bee::Point GetCoordinateInPictureFromWorld(bee::Point positionInBox2d);
 	~LayoutShowUnit();
-	bee::PolygonList showArea;
+	bee::PolygonList m_ShowArea;
+	bee::Polygon m_pictureTotalShowArea;
 	b2Body *body;
 	bee::Picture *picture;
 	GLuint texName;

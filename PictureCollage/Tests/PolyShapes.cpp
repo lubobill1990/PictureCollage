@@ -21,6 +21,7 @@ float32 testDistance(b2Fixture* fixtureA,b2Fixture *fixtureB)
 float32 picApproxWidthInBox2d,picApproxHeightInBox2d;
 PolyShapes::PolyShapes()
 {
+	this->layoutfinished=false;
 	this->body_num=0;
 	this->inputFiles=bee::PictureIO::GetPictureVector("D:\\pics");
 	this->pictureCount=this->inputFiles.size();
@@ -40,7 +41,9 @@ PolyShapes::PolyShapes()
 		uint row=floor(length/this->canvasWidth);
 		float32 x=leftbottomx+length-row*this->canvasWidth-picApproxWidthInBox2d/2;
 		float32 y=leftbottomy+(row+0.5)*picApproxHeightInBox2d;
-		this->initialPosition.push_back(bee::Point(x,y));
+		x=x<leftbottomx?leftbottomx:x;
+		x=x>(leftbottomx+this->canvasWidth)?leftbottomx+this->canvasWidth:x;
+		this->initialPosition.push_back(bee::Point(10,y));
 	}
 	int borderWidth=5,borderLength=40;
 	// Ground body
@@ -74,30 +77,6 @@ PolyShapes::PolyShapes()
 	m_world->SetContactFilter(new PicsContactFilter());
 
 }
-void PolyShapes::textureInit(bee::Picture *image_file)
-{    
-	glClearColor (0.0, 0.0, 0.0, 0.0);
-	glShadeModel(GL_FLAT);
-	glEnable(GL_DEPTH_TEST);
-
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glGenTextures(1,&image_file->texId);
-
-	glBindTexture(GL_TEXTURE_2D,image_file->texId);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, 
-		GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 
-		GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_file->width,
-		image_file->height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-		image_file->imgData);
-
-	glEnable(GL_TEXTURE_2D);
-}
-
-
 
 extern b2Vec2 ConvertWorldToScreen(float32 x,float32 y);
 extern b2Vec2 ConvertScreenToWorld(int x,int y);
@@ -123,16 +102,11 @@ void DrawBodyId(b2World*world )
 int testLayoutDoneStep=500;
 void PolyShapes::Step(Settings* settings)
 {
+	//首先调用在每一步中，每个test都要做的事情
+	Test::Step(settings);
 	if(this->body_num<this->inputFiles.size()){
 		this->Create(1);
 	}
-	--testLayoutDoneStep;
-	if(testLayoutDoneStep<0){
-		LayoutRender layout=LayoutRender(this->m_world);
-		layout.CalcEveryBodyShowArea();
-	}
-	//首先调用在每一步中，每个test都要做的事情
-	Test::Step(settings);
 	texCount=0;
 	int texImgCount=0;
 	DrawBodyId(m_world);
@@ -142,35 +116,10 @@ void PolyShapes::Step(Settings* settings)
 	HandleContactFixture(m_world);
 	//规定角度
 	AdjustAngle(m_world);
-
-#ifdef USE_TEXTURE
-	for (b2Body *body=m_world->GetBodyList();body;body=body->GetNext())
-	{
-
-		bee::Picture *i_f=((bee::Picture*)(body->GetUserData()));
-
-		b2Vec2 vertices[b2_maxPolygonVertices];
-		for (b2Fixture *fixture=body->GetFixtureList();fixture;fixture=fixture->GetNext())
-		{
-			if (fixture->GetFilterData().categoryBits==outer)
-			{//以下就是找出当前body的纹理坐标
-				const b2Transform& xf = fixture->GetBody()->GetTransform();
-				b2PolygonShape* poly = (b2PolygonShape*)fixture->GetShape();
-				int32 vertexCount = poly->m_vertexCount;
-				b2Assert(vertexCount <= b2_maxPolygonVertices);
-
-				for (int32 i = 0; i < vertexCount; ++i)
-				{
-					vertices[i] = b2Mul(xf, poly->m_vertices[i]);
-				}
-				display(i_f,vertices);
-				break;
-			} 
-		}
-
+	if(layoutfinished==true){
+		LayoutRender layout=LayoutRender(this->m_world);
+		layout.CalcEveryBodyShowArea();
 	}
-
-#endif
 }
 
 void PolyShapes::Create(int32 index)
@@ -216,18 +165,25 @@ void PolyShapes::Create(int32 index)
 	b2FixtureDef salent_bound;
 
 	salent_bound.userData=new FixtureData(inner);
-	b2Vec2 salient_vertices[8];
+	b2Vec2 salient_vertices[30];
+	b2Vec2 salient_vertices2[8];
 	for (unsigned int i=0;i<pictureInfo.salientArea.size();i++)
 	{
-		////因为给的文件是以右下角为原点的，所以需要转换点坐标
-		//salient_vertices[i].Set((pictureInfo.salientArea[i].first)/SCALAR,
-		//	(pictureInfo.height-pictureInfo.salientArea[i].second)/SCALAR);
-
 		salient_vertices[i].Set((pictureInfo.salientArea[i].first)/scalar,
 			(pictureInfo.height-pictureInfo.salientArea[i].second)/scalar);
 	}
+	b2Transform tx;
+	tx.SetIdentity();
+	bee::Polygon tmpPolygon(salient_vertices,pictureInfo.salientArea.size(),tx);
+	tmpPolygon=GetApproxiPolygonWithEdgeNumberLessThan(tmpPolygon,8);
+	tmpPolygon=tmpPolygon.ConvexHull();
+	for (uint i=0;i<tmpPolygon.Size();++i)
+	{
+		salient_vertices2[i].Set(tmpPolygon[i].GetStart().x,tmpPolygon[i].GetStart().y);
+	}
 	b2PolygonShape m_polygons3;
-	m_polygons3.Set(salient_vertices,pictureInfo.salientArea.size());
+	m_polygons3.Set(salient_vertices2,tmpPolygon.Size());
+	//m_polygons3.Set(salient_vertices,pictureInfo.salientArea.size());
 	salent_bound.shape=&m_polygons3;
 	salent_bound.density = 1.0f;
 	salent_bound.friction = 0.0f;
@@ -242,10 +198,6 @@ void PolyShapes::Create(int32 index)
 	BodyData *bodyData=new BodyData(this->body_num);
 	bodyData->m_Image=&pictureInfo;
 	m_bodies[m_bodyIndex]->SetUserData(bodyData);
-#ifdef USE_TEXTURE
-	textureInit(&pictureInfo);
-#endif
-
 	m_bodyIndex = (m_bodyIndex + 1) % k_maxBodies;
 }
 

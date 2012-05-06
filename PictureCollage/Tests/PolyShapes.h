@@ -19,20 +19,16 @@
 #ifndef POLY_SHAPES_H
 #define POLY_SHAPES_H
 #include <Box2D/Collision/b2Collision.h>
-//#define USE_TEXTURE 1
+
 #include "../Framework/Test.h"
 #include "../Framework/Render.h"
 #include "PicsContactFilter.h"
 #include "FixtureData.h"
-#ifdef USE_TEXTURE
-#include "../Texture/Texture.h"
-#endif
 #include "HandleLayoutResult.h"
 
 #include <utility>
 #include <vector>
 using namespace std;
-
 
 class PolyShapes : public Test
 {
@@ -69,8 +65,11 @@ public:
 		case '0':
 			this->body_num=0;
 			break;
-		case 't':
-			DrawAreaToShow(m_world);
+		case 'f':
+			layoutfinished=true;
+			break;
+		case 'r':
+			layoutfinished=false;
 			break;
 		case 'a':
 			for (int32 i = 0; i < k_maxBodies; i += 2)
@@ -108,8 +107,8 @@ public:
 	uint pictureCount;
 	vector<bee::Picture> inputFiles;
 	vector<bee::Point> initialPosition;
+	bool layoutfinished;
 private:
-	void textureInit(bee::Picture *image_file);
 	float32 TestLayoutStability();
 	bool IsLayoutDone();
 	int body_num;
